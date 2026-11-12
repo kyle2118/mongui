@@ -911,24 +911,24 @@ impl App {
         });
     }
 
-    fn browser_screen(&mut self, ui: &mut egui::Ui) {
+    /// Top bar drawn in every state, so the light/dark switch is always available.
+    fn top_bar(&mut self, ui: &mut egui::Ui) {
         let ctx = &ui.ctx().clone();
-        let mut actions: Vec<Action> = vec![];
-        let active = self.active.clone().unwrap_or_default();
-        let dark = self.dark;
-
+        let mut disconnect = false;
         egui::Panel::top("top").show(ui, |ui| {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
-                let (rect, _) = ui.allocate_exact_size(egui::vec2(12.0, 18.0), egui::Sense::hover());
-                ui.painter().circle_filled(rect.center(), 6.0, PALETTE[active.color % PALETTE.len()]);
-                ui.label(RichText::new(active.display_name()).strong().size(15.0));
-                ui.weak(active.hosts.chars().take(80).collect::<String>());
+                if let Some(active) = &self.active {
+                    let (rect, _) = ui.allocate_exact_size(egui::vec2(12.0, 18.0), egui::Sense::hover());
+                    ui.painter().circle_filled(rect.center(), 6.0, PALETTE[active.color % PALETTE.len()]);
+                    ui.label(RichText::new(active.display_name()).strong().size(15.0));
+                    ui.weak(active.hosts.chars().take(80).collect::<String>());
+                }
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if ui.button(format!("{I_PLUG}  Disconnect")).clicked() {
-                        actions.push(Action::Disconnect);
+                    if self.active.is_some() && ui.button(format!("{I_PLUG}  Disconnect")).clicked() {
+                        disconnect = true;
                     }
-                    if icon_button(ui, if dark { "☀" } else { "🌙" }, "Switch light / dark") {
+                    if icon_button(ui, if self.dark { "☀" } else { "🌙" }, "Switch light / dark") {
                         self.dark = !self.dark;
                         apply_theme(ctx, self.dark);
                     }
@@ -936,6 +936,14 @@ impl App {
             });
             ui.add_space(4.0);
         });
+        if disconnect {
+            self.apply(Action::Disconnect);
+        }
+    }
+
+    fn browser_screen(&mut self, ui: &mut egui::Ui) {
+        let mut actions: Vec<Action> = vec![];
+        let dark = self.dark;
 
         egui::Panel::left("tree").resizable(true).default_size(260.0).show(ui, |ui| {
             ui.add_space(6.0);
@@ -1481,6 +1489,7 @@ impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
         self.handle_events();
+        self.top_bar(ui);
         if self.active.is_some() {
             self.browser_screen(ui);
         } else {
