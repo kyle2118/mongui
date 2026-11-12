@@ -18,6 +18,8 @@ cargo run --release
 
 The first build takes a few minutes. After that the binary is at `target/release/mongui`.
 To get a double-clickable `mongui.app` on macOS, run `./scripts/make-app.sh`.
+The app icon comes from `assets/mongui-icon.png` (1024x1024, transparent background); the script turns it
+into `mongui.icns` with the built-in `sips` and `iconutil` tools, and the binary embeds the same PNG for the Dock/window icon.
 
 ## Connecting
 
