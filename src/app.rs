@@ -874,16 +874,6 @@ impl App {
                     if ui.add_enabled(self.form_dirty || self.selected.is_none(), egui::Button::new("Save")).clicked() && self.save_form() {
                         self.toast("Connection saved", false);
                     }
-                    if self.selected.is_some() {
-                        if ui.button("Duplicate").clicked() {
-                            let mut copy = self.form.clone();
-                            copy.id = conn::new_id();
-                            copy.name = format!("{} copy", copy.display_name());
-                            self.profiles.push(copy);
-                            self.persist();
-                            self.select_profile(Some(self.profiles.len() - 1));
-                        }
-                    }
                     if self.connecting {
                         ui.spinner();
                         ui.label("Connecting…");
@@ -896,6 +886,15 @@ impl App {
                         // Kept at the far edge, away from Connect and Save.
                         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                             ui.menu_button("⋯", |ui| {
+                                if ui.button("Duplicate").clicked() {
+                                    let mut copy = self.form.clone();
+                                    copy.id = conn::new_id();
+                                    copy.name = format!("{} copy", copy.display_name());
+                                    self.profiles.push(copy);
+                                    self.persist();
+                                    self.select_profile(Some(self.profiles.len() - 1));
+                                    ui.close();
+                                }
                                 if ui.button(RichText::new(format!("{I_TRASH}  Remove this connection…")).color(DANGER)).clicked() {
                                     self.modal = Modal::ConfirmDeleteProfile { index: i };
                                     ui.close();
