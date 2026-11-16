@@ -495,23 +495,24 @@ fn bytes(n: i64) -> String {
     if u == 0 { format!("{v:.0} {}", UNITS[u]) } else { format!("{v:.1} {}", UNITS[u]) }
 }
 
-/// A "label value" chip. It is measured up front so a wrapping row moves it to the next line as a
-/// whole; a bare Frame would be squeezed into the leftover width and wrap letter by letter.
+/// A "label value" chip, painted as one fixed-size block so every chip has the same height and a
+/// wrapping row moves it to the next line whole (never wrapping its text letter by letter).
 fn stat_chip(ui: &mut egui::Ui, label: &str, value: &str) -> egui::Response {
-    let measure = |t: RichText| egui::WidgetText::from(t).into_galley(ui, Some(egui::TextWrapMode::Extend), f32::INFINITY, TextStyle::Body).size();
-    let (l, r) = (measure(RichText::new(label)), measure(RichText::new(value).strong()));
-    let size = egui::vec2(l.x + 5.0 + r.x + 16.0, l.y.max(r.y) + 6.0);
-    ui.allocate_ui(size, |ui| {
-        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
-        egui::Frame::new().fill(ui.visuals().faint_bg_color).corner_radius(6.0).inner_margin(egui::Margin::symmetric(8, 3)).show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 5.0;
-                ui.weak(label);
-                ui.label(RichText::new(value).strong());
-            });
-        });
-    })
-    .response
+    let galley = |t: RichText| egui::WidgetText::from(t).into_galley(ui, Some(egui::TextWrapMode::Extend), f32::INFINITY, TextStyle::Body);
+    let (l, r) = (galley(RichText::new(label)), galley(RichText::new(value).strong()));
+    let (pad_x, gap) = (8.0, 5.0);
+    let height = l.size().y.max(r.size().y) + 6.0;
+    let size = egui::vec2(pad_x + l.size().x + gap + r.size().x + pad_x, height);
+    let (rect, response) = ui.allocate_exact_size(size, egui::Sense::hover());
+    if ui.is_rect_visible(rect) {
+        let painter = ui.painter();
+        painter.rect_filled(rect, 6.0, ui.visuals().faint_bg_color);
+        let lx = rect.left() + pad_x;
+        let rx = lx + l.size().x + gap;
+        painter.galley(egui::pos2(lx, rect.center().y - l.size().y / 2.0), l, ui.visuals().weak_text_color());
+        painter.galley(egui::pos2(rx, rect.center().y - r.size().y / 2.0), r, ui.visuals().strong_text_color());
+    }
+    response
 }
 
 fn icon_button(ui: &mut egui::Ui, icon: &str, tip: &str) -> bool {
