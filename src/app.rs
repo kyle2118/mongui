@@ -120,6 +120,7 @@ pub struct App {
 }
 
 fn apply_theme(ctx: &egui::Context, dark: bool) {
+    ctx.set_theme(if dark { egui::Theme::Dark } else { egui::Theme::Light });
     let mut visuals = if dark { egui::Visuals::dark() } else { egui::Visuals::light() };
     visuals.selection.bg_fill = if dark { Color32::from_rgb(0x1F, 0x4E, 0x7A) } else { Color32::from_rgb(0xBF, 0xDD, 0xFB) };
     visuals.hyperlink_color = ACCENT;
