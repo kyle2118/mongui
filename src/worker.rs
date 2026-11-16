@@ -70,7 +70,8 @@ pub enum Event {
     QueryFailed { req: u64, error: String },
     /// `None` means the count took too long and was abandoned.
     Count { req: u64, total: Option<u64>, estimated: bool },
-    CollStats { db: String, coll: String, stats: CollStats },
+    /// `Err` carries the server error, e.g. when the login lacks the collStats privilege.
+    CollStats { db: String, coll: String, stats: Result<CollStats, String> },
     DbStats { db: String, stats: DbStats },
     /// A write finished; the UI should reload the current page.
     Written(String),
@@ -226,17 +227,16 @@ async fn handle(cmd: Cmd, slot: Arc<Mutex<Option<Client>>>) -> Vec<Event> {
                 Ok(d) => Event::CollStats {
                     db,
                     coll,
-                    stats: CollStats {
+                    stats: Ok(CollStats {
                         count: num(&d, "count"),
                         size: num(&d, "size"),
                         avg_obj_size: num(&d, "avgObjSize"),
                         storage_size: num(&d, "storageSize"),
                         index_count: num(&d, "nindexes"),
                         total_index_size: num(&d, "totalIndexSize"),
-                    },
+                    }),
                 },
-                // Stats are a nice-to-have; a login without the privilege just sees none.
-                Err(_) => return vec![],
+                Err(e) => Event::CollStats { db, coll, stats: Err(e.to_string()) },
             }
         }
         Cmd::DbStats { db } => match client.database(&db).run_command(doc! {"dbStats": 1}).await {

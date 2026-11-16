@@ -70,7 +70,7 @@ struct CollView {
     count: CountState,
     req: u64,
     elapsed: Option<Duration>,
-    stats: Option<CollStats>,
+    stats: Option<Result<CollStats, String>>,
     jump_text: String,
     expand_gen: u64,
 }
@@ -493,6 +493,25 @@ fn bytes(n: i64) -> String {
         u += 1;
     }
     if u == 0 { format!("{v:.0} {}", UNITS[u]) } else { format!("{v:.1} {}", UNITS[u]) }
+}
+
+/// A "label value" chip. It is measured up front so a wrapping row moves it to the next line as a
+/// whole; a bare Frame would be squeezed into the leftover width and wrap letter by letter.
+fn stat_chip(ui: &mut egui::Ui, label: &str, value: &str) -> egui::Response {
+    let measure = |t: RichText| egui::WidgetText::from(t).into_galley(ui, Some(egui::TextWrapMode::Extend), f32::INFINITY, TextStyle::Body).size();
+    let (l, r) = (measure(RichText::new(label)), measure(RichText::new(value).strong()));
+    let size = egui::vec2(l.x + 5.0 + r.x + 16.0, l.y.max(r.y) + 6.0);
+    ui.allocate_ui(size, |ui| {
+        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+        egui::Frame::new().fill(ui.visuals().faint_bg_color).corner_radius(6.0).inner_margin(egui::Margin::symmetric(8, 3)).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 5.0;
+                ui.weak(label);
+                ui.label(RichText::new(value).strong());
+            });
+        });
+    })
+    .response
 }
 
 fn icon_button(ui: &mut egui::Ui, icon: &str, tip: &str) -> bool {
@@ -1023,31 +1042,24 @@ impl App {
             };
             ui.horizontal_wrapped(|ui| {
                 ui.label(RichText::new(format!("{}.{}", v.db, v.coll)).heading());
-                if let Some(s) = &v.stats {
-                    ui.add_space(10.0);
-                    for (label, value) in [
-                        ("Documents", thousands(s.count.max(0) as u64)),
-                        ("Data", bytes(s.size)),
-                        ("Avg doc", bytes(s.avg_obj_size)),
-                        ("On disk", bytes(s.storage_size)),
-                        ("Indexes", format!("{} ({})", s.index_count, bytes(s.total_index_size))),
-                    ] {
-                        // Measure the chip first so the wrapping row moves it to the next line as a
-                        // whole; a bare Frame would be squeezed into the leftover width instead.
-                        let measure = |t: RichText| egui::WidgetText::from(t).into_galley(ui, Some(egui::TextWrapMode::Extend), f32::INFINITY, TextStyle::Body).size();
-                        let (l, r) = (measure(RichText::new(label)), measure(RichText::new(&value).strong()));
-                        let size = egui::vec2(l.x + 5.0 + r.x + 16.0, l.y.max(r.y) + 6.0);
-                        ui.allocate_ui(size, |ui| {
-                            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
-                            egui::Frame::new().fill(ui.visuals().faint_bg_color).corner_radius(6.0).inner_margin(egui::Margin::symmetric(8, 3)).show(ui, |ui| {
-                                ui.horizontal(|ui| {
-                                    ui.spacing_mut().item_spacing.x = 5.0;
-                                    ui.weak(label);
-                                    ui.label(RichText::new(value).strong());
-                                });
-                            });
-                        });
+                match &v.stats {
+                    Some(Ok(s)) => {
+                        ui.add_space(10.0);
+                        for (label, value) in [
+                            ("Documents", thousands(s.count.max(0) as u64)),
+                            ("Data", bytes(s.size)),
+                            ("Avg doc", bytes(s.avg_obj_size)),
+                            ("On disk", bytes(s.storage_size)),
+                            ("Indexes", format!("{} ({})", s.index_count, bytes(s.total_index_size))),
+                        ] {
+                            stat_chip(ui, label, &value);
+                        }
                     }
+                    Some(Err(e)) => {
+                        ui.add_space(10.0);
+                        stat_chip(ui, "Stats", "unavailable").on_hover_text(e);
+                    }
+                    None => {}
                 }
             });
             ui.add_space(2.0);
