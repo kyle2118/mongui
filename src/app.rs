@@ -1032,10 +1032,20 @@ impl App {
                         ("On disk", bytes(s.storage_size)),
                         ("Indexes", format!("{} ({})", s.index_count, bytes(s.total_index_size))),
                     ] {
-                        egui::Frame::new().fill(ui.visuals().faint_bg_color).corner_radius(6.0).inner_margin(egui::Margin::symmetric(8, 3)).show(ui, |ui| {
-                            ui.spacing_mut().item_spacing.x = 5.0;
-                            ui.weak(label);
-                            ui.label(RichText::new(value).strong());
+                        // Measure the chip first so the wrapping row moves it to the next line as a
+                        // whole; a bare Frame would be squeezed into the leftover width instead.
+                        let measure = |t: RichText| egui::WidgetText::from(t).into_galley(ui, Some(egui::TextWrapMode::Extend), f32::INFINITY, TextStyle::Body).size();
+                        let (l, r) = (measure(RichText::new(label)), measure(RichText::new(&value).strong()));
+                        let size = egui::vec2(l.x + 5.0 + r.x + 16.0, l.y.max(r.y) + 6.0);
+                        ui.allocate_ui(size, |ui| {
+                            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+                            egui::Frame::new().fill(ui.visuals().faint_bg_color).corner_radius(6.0).inner_margin(egui::Margin::symmetric(8, 3)).show(ui, |ui| {
+                                ui.horizontal(|ui| {
+                                    ui.spacing_mut().item_spacing.x = 5.0;
+                                    ui.weak(label);
+                                    ui.label(RichText::new(value).strong());
+                                });
+                            });
                         });
                     }
                 }
