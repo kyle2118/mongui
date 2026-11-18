@@ -58,7 +58,8 @@ The editor keeps types exactly as written: `42` is Int32, `NumberLong(42)` is In
 ## Big collections
 
 - Each page is one small query (`skip` + `limit`), never the whole collection.
-- With no filter, the total comes from collection metadata (instant, shown as "about N").
+- The pager reads `1 2 3 … current go-to last`, then "total N" and the query time.
+- With no filter, the total comes from collection metadata (instant, an estimate; hover "total" to see that).
 - With a filter, the exact count gets 12 seconds; after that paging falls back to previous/next.
 - Every query is cancelled on the server after 30 seconds, so a bad filter cannot hang anything.
 - Jumping to a very deep page uses `skip`, which the server has to walk. It is fine for occasional use.

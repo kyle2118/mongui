@@ -472,6 +472,32 @@ impl App {
 
 // ---------------------------------------------------------------- helpers
 
+#[derive(Debug, PartialEq)]
+enum PageItem {
+    Page(u64),
+    Gap,
+    Jump,
+}
+
+/// Pager layout (0-based pages): every page when there are fewer than 10, otherwise
+/// `1 2 3 [… current] go-to last`. The gap shows only when pages are hidden before current.
+fn page_items(cur: u64, total_pages: u64) -> Vec<PageItem> {
+    if total_pages < 10 {
+        return (0..total_pages).map(PageItem::Page).collect();
+    }
+    let last = total_pages - 1;
+    let mut items: Vec<PageItem> = (0..3).map(PageItem::Page).collect();
+    if cur > 3 {
+        items.push(PageItem::Gap);
+    }
+    if cur > 2 && cur < last {
+        items.push(PageItem::Page(cur));
+    }
+    items.push(PageItem::Jump);
+    items.push(PageItem::Page(last));
+    items
+}
+
 fn thousands(n: u64) -> String {
     let s = n.to_string();
     let mut out = String::with_capacity(s.len() + s.len() / 3);
@@ -1169,7 +1195,7 @@ impl App {
         }
     }
 
-    /// Rows-per-page, first pages, a jump box, the last pages, and previous/next arrows.
+    /// Rows-per-page, previous/next arrows and the page list from `page_items`.
     fn pager(&mut self, ui: &mut egui::Ui, actions: &mut Vec<Action>) {
         let Some(v) = self.view.as_mut() else { return };
         egui::ComboBox::from_id_salt("page_size").width(64.0).selected_text(format!("{} / page", v.page_size)).show_ui(ui, |ui| {
@@ -1221,21 +1247,19 @@ impl App {
         };
         let mut jump_to = None;
         match total_pages {
-            Some(tp) if tp < 10 => {
-                for p in 0..tp {
-                    page_button(ui, p);
-                }
-            }
             Some(tp) => {
-                for p in 0..3 {
-                    page_button(ui, p);
+                for item in page_items(cur, tp) {
+                    match item {
+                        PageItem::Page(p) => page_button(ui, p),
+                        PageItem::Gap => {
+                            ui.weak("…");
+                        }
+                        PageItem::Jump => jump_to = jump(ui, v, Some(tp)),
+                    }
                 }
-                jump_to = jump(ui, v, Some(tp));
-                page_button(ui, tp - 2);
-                page_button(ui, tp - 1);
             }
             None => {
-                ui.label("Page");
+                ui.label(format!("Page {}", thousands(cur + 1)));
                 jump_to = jump(ui, v, None);
             }
         }
@@ -1247,20 +1271,19 @@ impl App {
         }
         ui.separator();
 
-        let from = cur * v.page_size + 1;
-        let to = cur * v.page_size + v.docs.len() as u64;
-        let range = if v.docs.is_empty() { "0".to_string() } else { format!("{}–{}", thousands(from), thousands(to)) };
         match v.count {
             CountState::Known { total, estimated } => {
-                ui.label(format!("{range} of {}{}", if estimated { "about " } else { "" }, thousands(total)));
+                let r = ui.label(format!("total {}", thousands(total)));
+                if estimated {
+                    r.on_hover_text("Estimate from collection metadata");
+                }
             }
             CountState::Loading => {
-                ui.label(format!("{range} of"));
+                ui.label("total");
                 ui.spinner();
             }
             CountState::Unknown => {
-                ui.label(range).on_hover_text("Counting every match took too long, so the total is not shown. Paging still works.");
-                ui.weak("(total not counted)");
+                ui.weak("total not counted").on_hover_text("Counting every match took too long. Paging still works.");
             }
         }
         if let Some(e) = v.elapsed {
@@ -1520,5 +1543,22 @@ impl eframe::App for App {
         }
         self.modals(&ctx);
         self.toasts(&ctx);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{page_items, PageItem::*};
+
+    #[test]
+    fn pager_layout() {
+        assert_eq!(page_items(0, 1), vec![Page(0)]);
+        assert_eq!(page_items(2, 4), vec![Page(0), Page(1), Page(2), Page(3)]);
+        assert_eq!(page_items(1, 50), vec![Page(0), Page(1), Page(2), Jump, Page(49)]);
+        // page 4 follows 3 directly: no gap
+        assert_eq!(page_items(3, 50), vec![Page(0), Page(1), Page(2), Page(3), Jump, Page(49)]);
+        assert_eq!(page_items(20, 50), vec![Page(0), Page(1), Page(2), Gap, Page(20), Jump, Page(49)]);
+        // current is the last page: shown once, at the end
+        assert_eq!(page_items(49, 50), vec![Page(0), Page(1), Page(2), Gap, Jump, Page(49)]);
     }
 }
