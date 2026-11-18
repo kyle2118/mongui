@@ -1159,31 +1159,41 @@ impl App {
                 for (i, doc) in v.docs.iter().enumerate() {
                     egui::Frame::group(ui.style()).fill(ui.visuals().faint_bg_color).corner_radius(8.0).show(ui, |ui| {
                         ui.set_width(ui.available_width());
-                        ui.horizontal(|ui| {
-                            ui.weak(format!("#{}", thousands(first_row + i as u64 + 1)));
-                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                // Delete sits inside a menu so a stray click can never reach it.
-                                ui.menu_button("⋯", |ui| {
-                                    if ui.button(RichText::new(format!("{I_TRASH}  Delete document…")).color(DANGER)).clicked() {
-                                        actions.push(Action::DeleteDoc(i));
-                                        ui.close();
-                                    }
-                                })
-                                .response
-                                .on_hover_text("More");
-                                if ui.add(egui::Button::new(I_CLONE).frame(false)).on_hover_text("Insert a copy").clicked() {
-                                    actions.push(Action::CloneDoc(i));
-                                }
-                                if ui.add(egui::Button::new(I_COPY).frame(false)).on_hover_text("Copy document").clicked() {
-                                    ui.ctx().copy_text(shell::doc_to_shell(doc));
-                                }
-                                if ui.add(egui::Button::new(I_EDIT).frame(false)).on_hover_text("Edit").clicked() {
-                                    actions.push(Action::EditDoc(i));
-                                }
-                            });
-                        });
                         ui.spacing_mut().item_spacing.y = 2.0;
                         render_fields(ui, doc, egui::Id::unique(("doc", first_row, i)), dark, expand);
+                        // Icons and the row number float over the card corners so they take no line of their own.
+                        let content = ui.min_rect();
+                        let fill = ui.visuals().faint_bg_color;
+                        let overlay = |ui: &mut egui::Ui, rect: egui::Rect, layout: Layout, add: &mut dyn FnMut(&mut egui::Ui)| {
+                            let bg = ui.painter().add(egui::Shape::Noop);
+                            let mut child = ui.new_child(egui::UiBuilder::new().max_rect(rect).layout(layout));
+                            add(&mut child);
+                            ui.painter().set(bg, egui::Shape::rect_filled(child.min_rect().expand(2.0), 4.0, fill));
+                        };
+                        let number = thousands(first_row + i as u64 + 1);
+                        overlay(ui, content, Layout::right_to_left(Align::Max), &mut |ui| {
+                            ui.label(RichText::new(&number).small().weak());
+                        });
+                        overlay(ui, content, Layout::right_to_left(Align::Min), &mut |ui| {
+                            // Delete sits inside a menu so a stray click can never reach it.
+                            ui.menu_button("⋯", |ui| {
+                                if ui.button(RichText::new(format!("{I_TRASH}  Delete document…")).color(DANGER)).clicked() {
+                                    actions.push(Action::DeleteDoc(i));
+                                    ui.close();
+                                }
+                            })
+                            .response
+                            .on_hover_text("More");
+                            if ui.add(egui::Button::new(I_CLONE).frame(false)).on_hover_text("Insert a copy").clicked() {
+                                actions.push(Action::CloneDoc(i));
+                            }
+                            if ui.add(egui::Button::new(I_COPY).frame(false)).on_hover_text("Copy document").clicked() {
+                                ui.ctx().copy_text(shell::doc_to_shell(doc));
+                            }
+                            if ui.add(egui::Button::new(I_EDIT).frame(false)).on_hover_text("Edit").clicked() {
+                                actions.push(Action::EditDoc(i));
+                            }
+                        });
                     });
                     ui.add_space(2.0);
                 }
