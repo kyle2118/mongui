@@ -344,7 +344,7 @@ pub fn parse_compass_connection(json: &serde_json::Value) -> Option<Profile> {
     let mut p = profile_from_uri(uri).ok()?;
     p.name = name.to_string();
     if let Some(c) = info.pointer("/favorite/color").and_then(|v| v.as_str()) {
-        p.color = COMPASS_COLORS.iter().position(|x| *x == c).map(|i| i % crate::app::PALETTE.len()).unwrap_or(0);
+        p.color = COMPASS_COLORS.iter().position(|x| *x == c).map(|i| i % crate::theme::CONN_COLORS.len()).unwrap_or(0);
     }
     Some(p)
 }

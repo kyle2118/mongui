@@ -23,6 +23,10 @@ sha1 = "0.11.0"
 tempfile = "3.27.0"
 tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros"] }
 
+[features]
+# Offline fake server for screenshots and UI checks. Never needed for normal use.
+demo = []
+
 [profile.release]
 opt-level = 3
 lto = "thin"

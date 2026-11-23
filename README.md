@@ -68,3 +68,22 @@ The editor keeps types exactly as written: `42` is Int32, `NumberLong(42)` is In
 
 `cargo test` runs the parser, keystore and import/export tests.
 `cargo test -- --include-ignored` also connects to a local TLS server, see `tests/README.md`.
+
+## Look and feel
+
+The UI is built on a small design system so every screen stays consistent:
+
+- `src/theme.rs` holds the tokens: the dark and light palettes, type sizes, spacing, radii and control sizes,
+  plus the global egui style. Change a color or size there and the whole app follows.
+- `src/widgets.rs` holds the components the screens are made of: buttons (primary, secondary, ghost, danger),
+  icon buttons, inputs, segmented controls, switches, checkboxes, cards, callouts, empty states, dialogs.
+- Fonts are bundled, so the app looks the same on every Mac: Inter for text, JetBrains Mono for documents and
+  filters, and Lucide for icons. They are subset to the characters mongui uses (about 250 KB together).
+  Licenses are next to them in `assets/fonts/`.
+
+To look at every screen without a server, there is an offline demo mode (not part of normal builds):
+
+```
+MONGUI_DEMO=1 MONGUI_HOME=/tmp/mongui-demo cargo run --release --features demo
+```
+

@@ -84,6 +84,11 @@ pub struct Handle {
 }
 
 impl Handle {
+    #[cfg(feature = "demo")]
+    pub(crate) fn from_sender(tx: tmpsc::UnboundedSender<Cmd>) -> Self {
+        Self { tx }
+    }
+
     pub fn send(&self, cmd: Cmd) {
         let _ = self.tx.send(cmd);
     }
